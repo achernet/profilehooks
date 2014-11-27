@@ -141,6 +141,8 @@ except ImportError:
 # For timecall
 import time
 
+# For type checking classes vs. functions
+import types
 
 # registry of available profilers
 AVAILABLE_PROFILERS = {}
@@ -232,7 +234,10 @@ def profile(fn=None, skip=0, filename=None, immediate=False, dirs=False,
         return fp(*args, **kw)
     new_fn.__doc__ = fn.__doc__
     new_fn.__name__ = fn.__name__
-    new_fn.__dict__ = fn.__dict__
+    if isinstance(fn.__dict__, types.DictProxyType):
+        new_fn.__dict__ = dict(fn.__dict__)
+    else:
+        new_fn.__dict__ = fn.__dict__
     new_fn.__module__ = fn.__module__
     return new_fn
 
@@ -347,8 +352,14 @@ class FuncProfile(object):
     def print_stats(self):
         """Print profile information to sys.stdout."""
         funcname = self.fn.__name__
-        filename = self.fn.__code__.co_filename
-        lineno = self.fn.__code__.co_firstlineno
+        if hasattr(self.fn, '__code__'):
+            filename = self.fn.__code__.co_filename
+            lineno = self.fn.__code__.co_firstlineno
+        else:
+            codes = [func.__code__ for func in self.fn.__dict__.values()
+                     if hasattr(func, '__code__')]
+            filename = set([code.co_filename for code in codes]).pop()
+            lineno = min([code.co_firstlineno for code in codes])
         print("")
         print("*** PROFILER RESULTS ***")
         print("%s (%s:%s)" % (funcname, filename, lineno))
