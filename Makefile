@@ -13,7 +13,7 @@ test check:
 
 .PHONY: coverage
 coverage:
-	coverage run --source=profilehooks test_profilehooks.py
+	coverage run --branch --source=profilehooks test_profilehooks.py
 	coverage report
 
 .PHONY: test-all-pythons
