@@ -5,3 +5,5 @@ tmp
 *.py[co]
 __pycache__/
 .coverage
+.project
+.pydevproject
