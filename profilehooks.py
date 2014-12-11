@@ -112,6 +112,7 @@ import atexit
 import inspect
 import sys
 import re
+import os
 
 # For profiling
 from profile import Profile
@@ -151,7 +152,7 @@ __all__ = ['coverage', 'coverage_with_hotshot', 'profile', 'timecall']
 
 
 def profile(fn=None, skip=0, filename=None, immediate=False, dirs=False,
-            sort=None, entries=40,
+            sort=None, entries=40, multi=False,
             profiler=('cProfile', 'profile', 'hotshot')):
     """Mark `fn` for profiling.
 
@@ -212,7 +213,7 @@ def profile(fn=None, skip=0, filename=None, immediate=False, dirs=False,
             return profile(fn, skip=skip, filename=filename,
                            immediate=immediate, dirs=dirs,
                            sort=sort, entries=entries,
-                           profiler=profiler)
+                           profiler=profiler, multi=multi)
         return decorator
     # @profile syntax -- we are a decorator.
     if isinstance(profiler, str):
@@ -226,7 +227,7 @@ def profile(fn=None, skip=0, filename=None, immediate=False, dirs=False,
                              % ', '.join(sorted(AVAILABLE_PROFILERS)))
     fp = profiler_class(fn, skip=skip, filename=filename,
                         immediate=immediate, dirs=dirs,
-                        sort=sort, entries=entries)
+                        sort=sort, entries=entries, multi=multi)
     # We cannot return fp or fp.__call__ directly as that would break method
     # definitions, instead we need to return a plain function.
 
@@ -305,7 +306,7 @@ class FuncProfile(object):
     Profile = Profile
 
     def __init__(self, fn, skip=0, filename=None, immediate=False, dirs=False,
-                 sort=None, entries=40):
+                 sort=None, entries=40, multi=False):
         """Creates a profiler for a function.
 
         Every profiler has its own log file (the name of which is derived
@@ -319,11 +320,14 @@ class FuncProfile(object):
         self.filename = filename
         self.immediate = immediate
         self.dirs = dirs
+        self.multi = multi
         self.sort = sort or ('cumulative', 'time', 'calls')
         if isinstance(self.sort, str):
             self.sort = (self.sort, )
         self.entries = entries
         self.reset_stats()
+        if self.multi and os.path.isfile(self.filename):
+            self.stats.load_stats(self.filename)
         atexit.register(self.atexit)
 
     def __call__(self, *args, **kw):
@@ -347,6 +351,7 @@ class FuncProfile(object):
             self.stats.add(profiler)
             if self.immediate:
                 self.print_stats()
+            if not self.multi:
                 self.reset_stats()
 
     def print_stats(self):
@@ -415,7 +420,7 @@ if hotshot is not None:
         in_profiler = False
 
         def __init__(self, fn, skip=0, filename=None, immediate=False,
-                     dirs=False, sort=None, entries=40):
+                     dirs=False, sort=None, entries=40, multi=False):
             """Creates a profiler for a function.
 
             Every profiler has its own log file (the name of which is derived
@@ -433,7 +438,7 @@ if hotshot is not None:
                 self.logfilename = fn.__name__ + ".prof"
             super(HotShotFuncProfile, self).__init__(
                 fn, skip=skip, filename=filename, immediate=immediate,
-                dirs=dirs, sort=sort, entries=entries)
+                dirs=dirs, sort=sort, entries=entries, multi=multi)
 
         def __call__(self, *args, **kw):
             """Profile a singe call to the function."""
